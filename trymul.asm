@@ -1,20 +1,28 @@
 jmp start
 
-num1: dw 0abc1h,0ffffh
-num2: dw 0def2h,0ffffh
+num1: dw 00000h,00fffh
+num2: dw 00001h,0ffffh
 sum: dw 00000h,00000h
 digit: dw 00000h,00000h,00000h,00000h
 
 start:
 	mov ax, [num2+2]
-	add ax, [num1+2]
-	mov dx, [num2]
-	adc dx, [num1]
-	
+	mov bx, [num1+2]
+	mul bx
 	mov [sum], dx
 	mov [sum+2], ax
+	
+	mov ax, [num2]
+	mov bx, [num1+2]
+	mul bx
+	add [sum], ax
+	
+	mov ax, [num2+2]
+	mov bx, [num1]
+	mul bx
+	add [sum], ax
+	
 	call print
-
 	mov ax, [sum+2]
 	mov [sum], ax
 	call print
