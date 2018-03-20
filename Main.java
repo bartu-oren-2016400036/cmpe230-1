@@ -22,6 +22,8 @@ public class Main {
 		
 		try {
 		    writer = new PrintWriter(new FileWriter(args[0].substring(0, args[0].indexOf('.')) + ".asm"));
+		    writer.print("ags");
+		    writer.print("ags");
 		} 
 		catch (IOException ex) {
 			ex.printStackTrace();
@@ -29,6 +31,7 @@ public class Main {
 		
 		String line = "";
 		int lineNumber = 0;
+		String[] knownVars;
 		
 		// Process line by line
 		while(in.hasNext()) {
@@ -39,8 +42,10 @@ public class Main {
 			if(line.contains("=")) {
 				if(paranthesisCheck(line)) { // Check parenthesis usage.
 					String[] inputs = line.split("=");
+					System.out.println(inputs[1]);
 					if(!line.contains("pow") && !line.contains("*") && !line.contains("+")) {
 						// Assignment
+						
 					} else {
 						String postFixRep = postfix(inputs[1]);
 						if(postFixRep.equals("error"))
@@ -96,37 +101,52 @@ public class Main {
 	public static String postfix(String line) {
 		Stack<Character> operator = new Stack<Character>(); 
 		String postf = "";
+		boolean first = true;
 		for(int i = 0; i<line.length(); i++) {
-			if(line.charAt(i)==' '|| line.charAt(i)=='+'||line.charAt(i)=='*'||line.charAt(i)=='('||line.charAt(i)==')') {
-				postf += line.substring(0, i);
-				if(line.charAt(i) == ' ') {
-					if (line.charAt(i+1)!='+' || line.charAt(i+1)!='*' || line.charAt(i+1)!='(' || line.charAt(i)!=')') {
-						return "error";
-					}
+			if(line.charAt(i) == ' ') {
+				if (first !=true && (line.charAt(i+1)!='+' || line.charAt(i+1)!='*' || line.charAt(i+1)!='(' || line.charAt(i)!=')')) {
+					System.out.println(i);
+					return "error";
 				}
-				else if(line.charAt(i) == ')') {
+
+			}
+			else if(line.charAt(i)=='+'||line.charAt(i)=='*'||line.charAt(i)=='('||line.charAt(i)==')') {
+				postf += line.substring(0, i);
+				postf += " ";
+
+
+				if(line.charAt(i) == ')') {
 					while(operator.peek() != '(') {
 						postf += operator.pop();
+						postf += " ";
 					}
 					operator.pop();
 				}
 
-				else if(operator.isEmpty() || operator.peek() == '(' || operator.peek() == '+' || line.charAt(i) == '(' || (line.charAt(i) == '*' && operator.peek() == '*'))
-					operator.push(line.charAt(i));	
+				else if(operator.isEmpty() || operator.peek() == '(' || operator.peek() == '+' || line.charAt(i) == '(' || (line.charAt(i) == '*' && operator.peek() == '*')) {
+					operator.push(line.charAt(i));
+					System.out.println(line.charAt(i));
+				}
 
 				else if (line.charAt(i) == '+' && operator.peek() == '*'){
 					while(operator.peek() == '*') {
 						postf += operator.pop();
+						postf += " ";
 					}
 					operator.push(line.charAt(i));
 				}					
-				line = line.substring(i+1);	
+				line = line.substring(i+1);
+				first = false;
 				i = 0;	
 			}	
 		}
 		postf += line;
-		while(!operator.isEmpty())
+		postf += " ";
+		while(!operator.isEmpty()) {
 			postf +=operator.pop();
+			postf += " ";
+		}
+		System.out.println(postf);
 
 		return postf;
 
