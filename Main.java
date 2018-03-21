@@ -42,7 +42,6 @@ public class Main {
 			if(line.contains("=")) {
 				if(paranthesisCheck(line)) { // Check parenthesis usage.
 					String[] inputs = line.split("=");
-					System.out.println(inputs[1]);
 					if(!line.contains("pow") && !line.contains("*") && !line.contains("+")) {
 						// Assignment
 						
@@ -105,27 +104,28 @@ public class Main {
 		for(int i = 0; i<line.length(); i++) {
 			if(line.charAt(i) == ' ') {
 				if (first !=true && (line.charAt(i+1)!='+' || line.charAt(i+1)!='*' || line.charAt(i+1)!='(' || line.charAt(i)!=')')) {
-					System.out.println(i);
 					return "error";
 				}
-
+				line = line.substring(i+1);
+				i=-1;
+				
 			}
 			else if(line.charAt(i)=='+'||line.charAt(i)=='*'||line.charAt(i)=='('||line.charAt(i)==')') {
 				postf += line.substring(0, i);
-				postf += " ";
+				if(i!=0)
+					postf += " ";
 
 
 				if(line.charAt(i) == ')') {
 					while(operator.peek() != '(') {
 						postf += operator.pop();
-						postf += " ";
+						postf += " ";		
 					}
 					operator.pop();
 				}
 
 				else if(operator.isEmpty() || operator.peek() == '(' || operator.peek() == '+' || line.charAt(i) == '(' || (line.charAt(i) == '*' && operator.peek() == '*')) {
 					operator.push(line.charAt(i));
-					System.out.println(line.charAt(i));
 				}
 
 				else if (line.charAt(i) == '+' && operator.peek() == '*'){
@@ -137,16 +137,16 @@ public class Main {
 				}					
 				line = line.substring(i+1);
 				first = false;
-				i = 0;	
+				i = -1;	
 			}	
 		}
 		postf += line;
 		postf += " ";
+
 		while(!operator.isEmpty()) {
 			postf +=operator.pop();
 			postf += " ";
 		}
-		System.out.println(postf);
 
 		return postf;
 
