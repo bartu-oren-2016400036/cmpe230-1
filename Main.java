@@ -108,14 +108,23 @@ public class Main {
 		writer.println("const2: dw 00000h,00000h");
 		writer.println("helper: dw 00000h,00000h");
 		writer.println("digit: dw 00000h,00000h,00000h,00000h");
+		writer.println("powerbase: dw 00000h,00000h");
+		writer.println("powerexp: dw 00000h,00000h");
+		writer.println("powerres: dw 00000h,00000h");
+		
 		writer.println();
 		
 		knownVars.add("const");	
 		knownVars.add("const2");
 		knownVars.add("helper");
+		knownVars.add("powerbase");
+		knownVars.add("powerexp");
+		knownVars.add("powerres");
 		
 		// Writes print function for assembly
 		printFunction();
+		powerFunction();
+		
 		
 		writer.println("start:");
 		writer.println();
@@ -150,12 +159,13 @@ public class Main {
 				if(paranthesisCheck(line)) { 
 					String[] inputs = line.split("=");
 					if(line.contains("pow") || line.contains("*") || line.contains("+")) {
-						String postFixRep = postfix(inputs[1]);
+						List<String> postList = postFix(inputs[1]);	
+
+						if(postList == null) {
+							System.out.println("Line " + lineNumber + ": Syntax error.");
+							System.exit(0);
+						}
 						
-						List<String> postList = null; 
-						String[] postArray = null;
-						postArray = postFixRep.split("\\s+");
-						postList = new LinkedList<>(Arrays.asList(postArray));		
 						postList.removeAll(Arrays.asList("", null));
 						
 						Stack<String> post = new Stack<String>();
@@ -176,13 +186,10 @@ public class Main {
 								post.push(s);
 							}
 						}
+						
 						inputs[0] = inputs[0].replaceAll("\\s+","");
 						varAssign(inputs[0], "helper");
 						
-						if(postFixRep.equals("error")) {
-							System.out.println("Line " + lineNumber + ": Syntax error.");
-							System.exit(0);
-						}
 					} else {
 						inputs[0] = inputs[0].replaceAll("\\s+","");
 						inputs[1] = inputs[1].replaceAll("\\s+","");
@@ -239,66 +246,66 @@ public class Main {
 		return (par1o == par1c && par2o == par2c && par3o == par3c);
 	}
 
-	// 2 operator yan yana kontrol
-	public static String postfix(String line) {
-		Stack<Character> operator = new Stack<Character>();
-		String postf = "";
-		boolean first = true;
-		for(int i = 0; i<line.length(); i++) {
-			if(line.charAt(i) == ' ') {
-				if (first !=true && line.charAt(i+1)!='+' && line.charAt(i+1)!='*'   && line.charAt(i)!=')') {
-					return "error";
-				}
-				postf += line.substring(0, i);
-				if(i!=0)
-					postf += " ";
-				line = line.substring(i+1);
-				i=-1;
-				first =false;
-
-			}
-			else  if(line.charAt(i)=='+'||line.charAt(i)=='*'||line.charAt(i)=='('||line.charAt(i)==')')  {
-				postf += line.substring(0, i);
-				if(i!=0)
-					postf += " ";
-
-
-				if(line.charAt(i) == ')') {
-					while(operator.peek() != '(') {
-						postf += operator.pop();
-						postf += " ";
+	public static List<String> postFix(String line) {
+		
+		Stack<String> operator = new Stack<String>();
+		List<String> postF = new LinkedList<String>();
+		boolean lastOpt = true;
+		
+		line = line.replaceAll("\\+", " + ");
+		line = line.replaceAll("\\*", " * ");
+		line = line.replaceAll("\\(", " ( ");
+		line = line.replaceAll("\\)", " ) ");
+	
+		
+		line = line.replaceAll("\\s+"," ");
+		
+		String [] lineArr = null;
+		lineArr = line.split("\\s+");
+		List<String> lineList = new LinkedList<>(Arrays.asList(lineArr));
+		
+		lineList.removeAll(Arrays.asList("", null));
+		
+		for(String s: lineList) {
+			if(s.equals("+") || s.equals("*") || s.equals("(") || s.equals(")")) {
+				
+				if(lastOpt == true && !s.equals("("))
+					return null;
+				
+				lastOpt = true;
+				
+				if(s.equals(")")) {
+					while(!operator.peek().equals("(")) {
+						postF.add(operator.pop());
 					}
 					operator.pop();
+					lastOpt = false;
 				}
 
-				else if(operator.isEmpty() || operator.peek() == '(' ||  operator.peek() == '+' || line.charAt(i) == '(' || (line.charAt(i) ==  '*' && operator.peek() == '*')) {
-					operator.push(line.charAt(i));
-					first = true;
+				else if(operator.isEmpty() || operator.peek().equals("(") || operator.peek().equals("+") || s.equals("(") || (s.equals("*") && operator.peek().equals("*"))) {
+					operator.push(s);
 				}
 
-				else if (line.charAt(i) == '+' && operator.peek() == '*'){
-					while(!operator.isEmpty() &&  operator.peek() == '*') {
-						postf += operator.pop();
-						postf += " ";
+				else if (s.equals("+") && operator.peek().equals("*")){
+					while(!operator.isEmpty() &&  operator.peek().equals("*")) {
+						postF.add(operator.pop());
 					}
-					operator.push(line.charAt(i));
-					first=true;
-				}
-				line = line.substring(i+1);
-				i = -1;
+					operator.push(s);
+				}					
+			}
+			else if(!s.equals("")) {
+				if(lastOpt == false)
+					return null;
+				postF.add(s);
+				lastOpt = false;
 			}
 		}
-		postf += line;
-		postf += " ";
-
-        while(!operator.isEmpty()) {
-            postf +=operator.pop();
-            postf += " ";
-        }
-
-        return postf;
-
-    }
+		while(!operator.isEmpty()) {
+			postF.add(operator.pop());
+		}
+		
+		return postF;
+	}
 
 	private static void constAssign(String con) {
 		if(con.length() <= 4) {
@@ -480,6 +487,91 @@ public class Main {
 		writer.println("int 21h");
 		writer.println("ret");
 		writer.println();
+	}
+	private static void powerFunction() {
+		writer.println("powerloop:");
+		writer.println("");
+		writer.println("mov ax, [powerbase]");
+		writer.println("mov [powerres], ax");
+		writer.println("mov ax, [powerbase+2]");
+		writer.println("mov [powerres+2], ax");
+		writer.println("");
+		writer.println("control0:");
+		writer.println("");
+		writer.println("mov ax, [powerexp]");
+		writer.println("cmp ax, 0");
+		writer.println("jnz control1");
+		writer.println("mov ax, [powerexp+2]");
+		writer.println("cmp ax, 0");
+		writer.println("jnz control1");
+		writer.println("mov ax, 0");
+		writer.println("mov [powerres], ax");
+		writer.println("mov ax, 1");
+		writer.println("mov [powerres+2], ax");
+		writer.println("ret");
+		writer.println("");
+		writer.println("control1:");
+		writer.println("");
+		writer.println("mov ax, [powerexp]");
+		writer.println("cmp ax, 0");
+		writer.println("jnz controlbase0");
+		writer.println("mov ax, [powerexp+2]");
+		writer.println("cmp ax, 1");
+		writer.println("jnz controlbase0");
+		writer.println("ret");
+		writer.println("");
+		writer.println("controlbase0:");
+		writer.println("");
+		writer.println("mov ax, [powerbase]");
+		writer.println("cmp ax, 0");
+		writer.println("jnz controlbase1");
+		writer.println("mov ax, [powerbase+2]");
+		writer.println("cmp ax, 0");
+		writer.println("jnz controlbase1");
+		writer.println("mov ax, 0");
+		writer.println("mov [powerres], ax");
+		writer.println("mov [powerres+2], ax");
+		writer.println("ret");
+		writer.println("");
+		writer.println("controlbase1: ");
+		writer.println("");
+		writer.println("mov ax, [powerbase]");
+		writer.println("cmp ax, 0");
+		writer.println("jnz operation");
+		writer.println("mov ax, [powerbase+2]");
+		writer.println("cmp ax, 1");
+		writer.println("jnz operation");
+		writer.println("mov ax, 0");
+		writer.println("mov [powerres], ax");
+		writer.println("mov ax,1");
+		writer.println("mov [powerres+2], ax");
+		writer.println("ret");
+		writer.println("");
+		writer.println("operation:");
+		writer.println("");
+		writer.println("mov ax, [powerbase+2]");
+		writer.println("mov bx, [powerres+2]");
+		writer.println("mul bx");
+		writer.println("mov [helper], dx");
+		writer.println("mov [helper+2], ax");
+		writer.println("mov ax, [powerres]");
+		writer.println("mov bx, [powerbase+2]");
+		writer.println("mul bx");
+		writer.println("add [helper], ax");
+		writer.println("mov ax, [powerres+2]");
+		writer.println("mov bx, [powerbase]");
+		writer.println("mul bx");
+		writer.println("add [helper], ax");
+		writer.println("mov ax, [helper]");
+		writer.println("mov [powerres], ax");
+		writer.println("mov ax, [helper+2]");
+		writer.println("mov [powerres+2], ax");
+		writer.println("");
+		writer.println("mov ax, [powerexp+2]");
+		writer.println("dec ax");
+		writer.println("mov [powerexp+2], ax");
+		writer.println("jmp control0");
+		writer.println("");
 	}
 	
 	private static void endProgram() {
