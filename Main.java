@@ -10,9 +10,12 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Stack;
 
+/* This program takes a given .co file as input and produces a .asm file 
+ * which contains the necessary assembly lines to execute the statements in .co file.
+ * */
 public class Main {
 	static PrintWriter writer = null;
-	static List<String> knownVars;
+	static List<String> knownVars;  //holds the list of known variables
 	public static void main(String[] args) {
 		Scanner in = null;
 		try {
@@ -34,6 +37,8 @@ public class Main {
 
 		writer.println("jmp start");
 		writer.println();
+		
+		//lines needed to print out Syntax error
 		writer.println("msg1 db \"Line $\"");
 		writer.println("msg2 db \" : Syntax error.\",10,13,\"$\"");
 
@@ -41,7 +46,7 @@ public class Main {
 		int errorNum = 0;
 		boolean error = false;
 
-		// process every word, open variables
+		// processes every word, opens variables when needed and checks if all constants are 32 bits or smaller 
 		while(in.hasNext()) {
 
 			int countOperations = 0; //holds count of operations per line
@@ -71,6 +76,7 @@ public class Main {
 				else if(!s.equals("pow") && !s.equals("+") && !s.equals("*") && !s.equals("(") && !s.equals(")")
 						&& !s.equals(",") && !s.equals("=") && !knownVars.contains(s)) {
 					if(s.matches("^[0-9a-fA-F]+$") && (s.length() > 9 || (s.length() == 9 && s.charAt(0)!='0'))) {
+						//a constant is greater than 32 bits
 						if(!error){
 							errorNum = lineNumber;
 							error = true;
@@ -78,13 +84,14 @@ public class Main {
 							
 					}
 					else if(!s.matches("^[0-9a-fA-F]+$")) {
-						writer.println(s + ": dw 00000h,00000h");
+						writer.println(s + ": dw 00000h,00000h");  //new variable found, prints variable declaration in .asm file
 						knownVars.add(s);
 					}
 				}
 			}
 			maxOperations = Math.max(maxOperations, countOperations);
 		}
+		//if there exists an error, prints out needed lines to declare the error to the .asm file
 		if(error) {
 			writer.println("start:");
 			writer.println();
@@ -94,11 +101,12 @@ public class Main {
 			System.exit(0);
 		}
 
-		//Initialize helper variables
+		//initializes needed variables to calculate postfix operations
 		for(int i=0; i<maxOperations; i++) {
 			writer.println("operation"+ i +": dw 00000h,00000h");
 			knownVars.add("operation"+i);
 		}
+		//initializes other helper variables
 		writer.println("const: dw 00000h,00000h");
 		writer.println("const2: dw 00000h,00000h");
 		writer.println("helper: dw 00000h,00000h");
@@ -124,7 +132,7 @@ public class Main {
 		writer.println("start:");
 		writer.println();
 
-		// Start second parse
+		// Starts second parse
 		try {
 			lineNumber = 0;
 			in.close();
@@ -134,7 +142,7 @@ public class Main {
 		}
 		lineNumber = 0;
 
-		// Process line by line
+		// Processes line by line to check for errors and prints out needed commands to execute the line
 		while(in.hasNext()) {
 			line = in.nextLine();
 
@@ -149,6 +157,7 @@ public class Main {
 			line = line.replaceAll("\\s+"," ");
 			lineNumber++;
 
+			//checks if the parenthesis are matched
 			if(!paranthesisCheck(line)) {
 				errorFunction(lineNumber);
 				in.close();
@@ -156,12 +165,12 @@ public class Main {
 				System.exit(0);
 			}
 
-			//Get info about what to do in current line.
+			//processes only assignment lines without operations
 			if(line.contains("=") && !line.contains("pow") && !line.contains("*") && !line.contains("+")) {
 				String[] inputs = line.split("=");
 				String[] syn = null;
 				List<String> syntax = null; 
-
+				
 				if(inputs.length > 2) {
 					errorFunction(lineNumber);
 					in.close();
@@ -185,6 +194,7 @@ public class Main {
 				inputs = line.split("=");
 				varAssign(inputs[0], inputs[1]);
 			}
+			//processes lines for printing out the values of variables
 			else if(!line.contains("pow") && !line.contains("*") && !line.contains("+") && !line.equals(" ") && !line.equals("")){
 				String[] syn = null;
 				syn = line.split("\\s+");
@@ -200,6 +210,7 @@ public class Main {
 				line = line.replaceAll("\\s+","");
 				printOut(line);
 			}
+			//processes operation lines
 			else if(line.contains("pow") || line.contains("*") || line.contains("+")) {
 				String[] inputs = line.split("=");
 				String[] syn = null;
@@ -221,8 +232,8 @@ public class Main {
 					writer.close();
 					System.exit(0);
 				}
-
-
+				
+				//checks the syntax of pow statement and converts pow(x,y) to x ^ y if the syntax is correct
 				if(line.contains("pow")) {
 					int openParCount = 0;
 					boolean lastPow = false;
@@ -237,6 +248,7 @@ public class Main {
 					powList.removeAll(Arrays.asList("", null));
 
 					for(String s: powList) {
+						// pow token after pow token, error
 						if(s.equals("pow")) {
 							if(lastPow) {
 								errorFunction(lineNumber);
@@ -247,6 +259,7 @@ public class Main {
 							lastPow = true;
 							inPowBase = true;
 						}
+						//not a "(" token after "pow", error
 						else if(lastPow && !s.equals("(")) {
 							errorFunction(lineNumber);
 							in.close();
@@ -256,6 +269,7 @@ public class Main {
 						else if(lastPow) {
 							lastPow = false;
 						}
+						//base is found
 						else if(inPowBase && s.equals(",")) {
 							inPowBase = false;
 							inPowExp = true;
@@ -290,6 +304,7 @@ public class Main {
 							powerExp += " ";
 							openParCount--;
 						}
+						//exponential part is found
 						else if(inPowExp && s.equals(")") && openParCount == 0) {
 							inPowExp = false;
 							powerExp.replaceAll("\\s+"," ");
@@ -317,7 +332,8 @@ public class Main {
 					inputs[1] = inputs[1].replaceAll(",", ") ^ (");
 				}
 				List<String> postList = postFix(inputs[1]);
-
+				
+				//error is found in postFix method
 				if(postList == null) {
 					errorFunction(lineNumber);
 					in.close();
@@ -330,6 +346,7 @@ public class Main {
 				Stack<String> post = new Stack<String>();
 				int operCount = 0;
 				
+				//computes the postFix notation in assembly
 				for(String s: postList) {
 					if(s.equals("*")) {
 						String val2 = post.pop();
@@ -359,7 +376,8 @@ public class Main {
 						post.push(s);
 					}
 				}
-
+				
+				//the outcome of the computation is assigned to the variable on the left of assignment operator
 				inputs[0] = inputs[0].replaceAll("\\s+","");
 				operCount--;
 				String last = "operation" + operCount;
@@ -367,12 +385,12 @@ public class Main {
 			}
 
 		}
-
+		//prints the ending commands in ,asm file and closes the file after every line is executed
 		endProgram();
 		in.close();
 		writer.close();
 	}
-
+    //checks if parenthesis are matched
 	public static boolean paranthesisCheck(String line) {
 		int par1o = 0;
 		int par1c = 0;
@@ -407,7 +425,8 @@ public class Main {
 
 		return (par1o == par1c && par2o == par2c && par3o == par3c);
 	}
-
+	
+	//turns the operation line to post fix notation, returns a list of the post fix form
 	public static List<String> postFix(String line) {
 
 		Stack<String> operator = new Stack<String>();
@@ -431,12 +450,12 @@ public class Main {
 
 		for(String s: lineList) {
 			if(s.equals("+") || s.equals("*") || s.equals("^") || s.equals("(") || s.equals(")")) {
-
+				//error exists in line if two operators are next to each other
 				if(lastOpt == true && !s.equals("("))
 					return null;
 
 				lastOpt = true;
-
+				// computes postfix notation given precedence: () > ^ > * > +
 				if(s.equals(")")) {
 					while(!operator.peek().equals("(")) {
 						postF.add(operator.pop());
@@ -456,6 +475,7 @@ public class Main {
 					}
 					operator.push(s);
 				}
+				
 				else if (s.equals("*") && operator.peek().equals("^")){
 					while(!operator.isEmpty() &&  operator.peek().equals("^")) {
 						postF.add(operator.pop());
@@ -463,6 +483,7 @@ public class Main {
 					operator.push(s);
 				}	
 			}
+			//adds variables or constants to postFix list
 			else if(!s.equals("")) {
 				if(lastOpt == false) {
 					return null;
@@ -477,7 +498,8 @@ public class Main {
 
 		return postF;
 	}
-
+	
+	//lines needed in assembly to assign a constant to variable named "const"
 	private static void constAssign(String con) {
 		if(con.length() <= 4) {
 			writer.println("mov ax, 0" + con + "h");
@@ -494,7 +516,7 @@ public class Main {
 			writer.println();
 		}
 	}
-
+	//lines needed in assembly to assign a constant to variable named "const2"
 	private static void const2Assign(String con) {
 		if(con.length() <= 4) {
 			writer.println("mov ax, 0" + con + "h");
@@ -511,7 +533,7 @@ public class Main {
 			writer.println();
 		}
 	}
-
+	//lines needed in assembly to assign a constant or variable to a variable
 	private static void varAssign(String left, String right) {
 		if(!knownVars.contains(right)) {
 			const2Assign(right);
@@ -524,7 +546,8 @@ public class Main {
 		writer.println("mov " + "[" + left + "+2], ax");
 		writer.println();
 	}
-
+	
+	//checks if the parameters are constants, if any of them are constAssign method is called and returns true
 	private static boolean isAnyConst(String var1, String var2) {
 		if(!knownVars.contains(var1) || !knownVars.contains(var2)) {
 			if(!knownVars.contains(var1))
@@ -535,7 +558,7 @@ public class Main {
 		}
 		return false;
 	}
-
+	//lines needed in assembly to add variables var1 and var2 and then assign it to the result
 	private static void sum(String var1, String var2, String result) {
 		if(isAnyConst(var1, var2)) {
 			if(!knownVars.contains(var1) && !knownVars.contains(var2)) {
@@ -558,7 +581,7 @@ public class Main {
 		writer.println();
 		varAssign(result, "helper");
 	}
-
+	//lines needed in assembly to multiply variables var1 and var2 and then assign it to the result
 	private static void mult(String var1, String var2, String result) {
 		if(isAnyConst(var1, var2)) {
 			if(!knownVars.contains(var1) && !knownVars.contains(var2)) {
@@ -591,7 +614,7 @@ public class Main {
 		varAssign(result, "helper");
 	}
 
-
+    //lines needed to print out a variable
 	private static void printOut(String output) {
 		varAssign("helper", output);
 		writer.println("call print");
@@ -605,7 +628,7 @@ public class Main {
 		writer.println("int 21h");
 		writer.println();
 	}
-
+	//lines needed in assembly to calculate pow(base,exp) and then assign it to the result
 	private static void power(String base, String exp, String result) {
 		if(isAnyConst(base, exp)) {
 			if(!knownVars.contains(base) && !knownVars.contains(exp)) {
@@ -624,7 +647,7 @@ public class Main {
 		writer.println("call powerloop");
 		varAssign(result, "helper");
 	}
-
+    //lines needed to print out a variable
 	private static void printFunction() {
 		writer.println("print:");
 		writer.println("mov ax, [helper]");
@@ -683,6 +706,7 @@ public class Main {
 		writer.println("ret");
 		writer.println();
 	}
+    //lines needed to calculate power
 	private static void powerFunction() {
 		writer.println("powerloop:");
 		writer.println("");
@@ -770,6 +794,7 @@ public class Main {
 		writer.println("jmp control0");
 		writer.println("");
 	}
+    //lines needed to print out a an error message
 	private static void errorFunction(int errorNum) {
 		Stack<Integer> reverseOrder = new Stack<Integer>();
 		while(errorNum != 0) {
@@ -793,7 +818,7 @@ public class Main {
 		endProgram();
 		
 	}
-
+    //lines needed to end the program
 	private static void endProgram() {
 		writer.println("mov ax, 0");
 		writer.println("mov ah, 4ch");
